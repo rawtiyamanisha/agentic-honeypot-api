@@ -34,17 +34,20 @@ Return ONLY a valid JSON object.
     "phone_numbers": [],
     "phishing_urls": []
   },
-  "tactics_detected": ["Urgency", "Authority Impersonation", etc.],
+  "tactics_detected": ["Urgency", "Authority Imppersonation"],
   "confidence_score": number
 }`;
 
+// =======================
+// CORE AI ENDPOINT
+// =======================
+app.post('/rakshak', async (req, res) => {
   const { conversation_id, message, history = [] } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "No message provided" });
   }
 
-  // Use process.env.API_KEY as per guidelines
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "API key not configured in environment." });
@@ -53,12 +56,11 @@ Return ONLY a valid JSON object.
   try {
     const ai = new GoogleGenAI({ apiKey });
 
-    // Construct conversation parts
     const contents = history.map(h => ({
       role: h.role === 'scammer' ? 'user' : 'model',
       parts: [{ text: h.content }]
     }));
-    
+
     contents.push({
       role: 'user',
       parts: [{ text: message }]
@@ -70,26 +72,27 @@ Return ONLY a valid JSON object.
       config: {
         systemInstruction: RAKSHAK_SYSTEM_PROMPT,
         responseMimeType: "application/json",
-        // Thinking budget allows the model to reason about the scammer's trickery before replying
         thinkingConfig: { thinkingBudget: 16000 }
       },
     });
 
-    const rawOutput = response.text;
-    const cleanedJson = rawOutput.replace(/```json|```/g, "").trim();
+    const cleanedJson = response.text.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleanedJson);
 
-    res.json({
+    return res.json({
       ...parsed,
-      conversation_id: conversation_id || `BCR-NODE-${Date.now()}`
+      conversation_id: conversation_id || `BCR-${Date.now()}`
     });
 
   } catch (error) {
     console.error("Rakshak Core Error:", error);
-    res.status(500).json({ error: "Forensic extraction failed", details: error.message });
+    return res.status(500).json({ error: "Forensic extraction failed" });
   }
 });
-// Hackathon-compatible endpoint (DO NOT CHANGE FORMAT)
+
+// =======================
+// HACKATHON TEST ENDPOINT
+// =======================
 app.post('/api/agentic-honeypot', async (req, res) => {
   return res.json({
     status: "success",
@@ -97,6 +100,9 @@ app.post('/api/agentic-honeypot', async (req, res) => {
   });
 });
 
+// =======================
+// SERVER START
+// =======================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🛡️ Bharat Cyber Rakshak API active on port ${PORT}`);
