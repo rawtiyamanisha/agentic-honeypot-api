@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --rakshak-navy: #002D62;
+    --rakshak-blue-light: #f1f5f9;
+    --rakshak-saffron: #FF9933;
+    --rakshak-green: #15803d;
+    --rakshak-red: #b91c1c;
+    --rakshak-white: #ffffff;
+}
+
+body {
+    background-color: var(--rakshak-blue-light);
+    color: #1e293b;
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+}
+
+.sov-grid {
+    background-image: 
+        radial-gradient(rgba(0, 45, 98, 0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+}
+
+.sov-panel {
+    background: var(--rakshak-white);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    border-radius: 2rem;
+}
+
+.hero-pattern {
+    background-color: #002d62;
+    background-image: url("https://www.transparenttextures.com/patterns/cubes.png");
+}

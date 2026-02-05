@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bharat Cyber Rakshak | Sovereign Defense Grid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root {
+            --rakshak-navy: #020617;
+            --rakshak-blue: #2563eb;
+            --rakshak-emerald: #10b981;
+            --rakshak-red: #ef4444;
+        }
+
+        body {
+            background-color: #f8fafc;
+            color: #0f172a;
+            margin: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .sov-grid {
+            background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .hero-pattern {
+            background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glow-blue { box-shadow: 0 0 40px rgba(37, 99, 235, 0.4); }
+
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .results-enter {
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hide scrollbars but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <script>
+        window.process = { env: { API_KEY: "" } };
+    </script>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "@google/genai": "https://esm.sh/@google/genai@1.39.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "express": "https://esm.sh/express@^5.2.1",
+    "dotenv": "https://esm.sh/dotenv@^17.2.3"
+  }
+}
+</script>
+</head>
+<body class="sov-grid">
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>
