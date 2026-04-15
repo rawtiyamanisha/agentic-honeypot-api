@@ -18,7 +18,7 @@ export const exportToCSV = (log: IntelligenceLog) => {
     ["Status", log.status],
     ["Channel", log.channel],
     ["Risk Level", log.threatLevel],
-    ["Language", log.language || "N/A"],
+    ["Risk Score", log.riskScore || "0"],
     ["Scam Type", log.scamType],
     ["Summary", log.summary],
     ["Origin Origin", log.sourceIntelligence?.likelyOrigin || "N/A"],
@@ -50,7 +50,8 @@ CASE ID: ${log.id}
 TIMESTAMP: ${new Date(log.timestamp).toLocaleString()}
 STATUS: ${log.status}
 THREAT LEVEL: ${log.threatLevel}
-LANGUAGE: ${log.language}
+RISK SCORE: ${log.riskScore}
+SCAM TYPE: ${log.scamType}
 
 SOURCE INTELLIGENCE:
 -------------------

@@ -1,6 +1,6 @@
 {
-  "name": "Bharat Cyber Rakshak AI (BCR-Sovereign)",
-  "description": "A multi-modal, agentic sovereign defense grid. BCR uses Gemini 3 Pro to intercept scams across Text, Voice, and Video, engaging scammers via autonomous honeypots to siphon forensic intelligence and protect global citizens.",
+  "name": "Bharat Cyber Rakshak – Your AI Guardian Against Cyber Fraud",
+  "description": "A multilingual AI-powered cyber safety assistant for Indian citizens. Detects text, voice, and video scams, provides safety guidance, and helps report cyber fraud to official authorities.",
   "requestFramePermissions": [
     "camera",
     "microphone",

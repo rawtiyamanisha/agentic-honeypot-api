@@ -21,6 +21,19 @@ export interface GroundingSource {
   address?: string;
 }
 
+export interface SessionScore {
+  intelExtractedCount: number;
+  timeToFirstUPI: number | null; // in seconds
+  scamTypeAccuracy: number; // 0-100
+  conversationDepth: number;
+}
+
+export interface BaitContext {
+  sourceMessageId?: string;
+  conversationContext?: string;
+  geoHint?: string;
+}
+
 export interface AgentIntelligence {
   upi_ids: string[];
   bank_accounts: any[];
@@ -75,6 +88,9 @@ export type HeaderStatus = 'VERIFIED_INSTITUTION' | 'SPOOFED_HEADER' | 'UNKNOWN_
 
 export interface SourceIntelligence {
   likelyOrigin: string;
+  country: string;
+  state: string;
+  city: string;
   networkDetails: string;
   institutionInference: string;
   isCrossBorder: boolean;
@@ -100,17 +116,19 @@ export interface IntelligenceLog extends ScamAnalysis {
   linkedCaseIds: string[];
   operationalRequests: OperationalRequest[];
   governance: GovernanceDossier;
+  sessionScore?: SessionScore;
 }
 
 export interface ScamAnalysis {
   isScam: boolean;
   confidence: number; 
   scamType: string;
-  language?: string;
-  channel: 'text' | 'call' | 'video' | 'audio' | 'qr' | 'app' | 'social' | 'screen-share';
+  riskScore: number;
+  channel: 'text' | 'call' | 'video' | 'audio' | 'qr' | 'app' | 'social' | 'screen-share' | 'image';
   threatLevel: 'Low' | 'Medium' | 'High' | 'Critical';
   summary: string;
   safetyAlert: string;
+  warningSignals: string[];
   extractedInfo: ExtractedInfo;
   groundingSources?: GroundingSource[];
   fingerprint: {
@@ -120,6 +138,7 @@ export interface ScamAnalysis {
     category: string;
   };
   recommendedActions: string[];
+  suggestedBaitResponse?: string;
   guardianGuidance?: GuardianGuidance;
   operationalReport?: OperationalReport;
   potentialImpact?: number;

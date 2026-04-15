@@ -1,5 +1,29 @@
-import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { ScamAnalysis, VideoAnalysis, GuardianGuidance, OperationalReport, AgentResponse, GroundingSource } from "../types";
+import { GoogleGenAI, Type, Modality, ThinkingLevel } from "@google/genai";
+import { ScamAnalysis, VideoAnalysis, GuardianGuidance, OperationalReport, AgentResponse, GroundingSource, BaitContext, SourceIntelligence } from "../types";
+
+const ORIGINS = ["Jamtara Cluster", "Nuh Network", "Alwar Group", "SE Asia Proxy", "Domestic Urban Hub", "Foreign IP Block"];
+const COUNTRIES = ["India", "Nigeria", "Cambodia", "Vietnam", "UAE", "Pakistan"];
+const STATES = ["Jharkhand", "Haryana", "Rajasthan", "Delhi", "Maharashtra", "Karnataka", "Punjab"];
+const CITIES = ["Jamtara", "Mewat", "Alwar", "Mumbai", "Bengaluru", "Gurugram", "Chandigarh"];
+
+function generateSimulatedSourceIntelligence(scamType: string): SourceIntelligence {
+  return {
+    likelyOrigin: ORIGINS[Math.floor(Math.random() * ORIGINS.length)],
+    country: COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)],
+    state: STATES[Math.floor(Math.random() * STATES.length)],
+    city: CITIES[Math.floor(Math.random() * CITIES.length)],
+    networkDetails: `Vector: Node-${Math.floor(Math.random() * 100)}`,
+    institutionInference: "Inferred from pattern",
+    isCrossBorder: Math.random() > 0.7,
+    geographicMarkers: ["Inferred Hub"],
+    clusterId: `RING-${Math.floor(Math.random() * 100)}`,
+    clusterConfidence: 85,
+    signalStrength: 75,
+    headerStatus: 'SPOOFED_HEADER',
+    sourceCategory: 'Telecom',
+    coordinates: { lat: 20 + Math.random() * 5, lng: 77 + Math.random() * 5 }
+  };
+}
 
 export interface ApiStatus {
   isThrottled: boolean;
@@ -53,42 +77,208 @@ async function withRetry<T>(fn: () => Promise<T>, fallback: T, retries = 0): Pro
   }
 }
 
-export const HONEY_POT_SYSTEM_PROMPT = `Analyze this message for Indian cyber scam patterns (KYC, Police, Bank, Lottery).
-Return JSON:
+export const HONEY_POT_SYSTEM_PROMPT = `You are Bharat Cyber Rakshak AI.
+
+Analyze the input message and detect fraud patterns.
+
+---
+
+TASK:
+
+1. Identify scam type from:
+- UPI / Payment fraud
+- Digital arrest / police scam
+- Job scam
+- Lottery / prize scam
+- KYC / bank update scam
+- Investment / crypto scam
+
+2. Classify:
+- isScam: true or false
+- threatLevel: Low / Medium / High / Critical
+- confidence: 0 to 1
+
+3. Extract ONLY if present:
+- UPI IDs
+- bank details
+- phone numbers
+- links
+
+STRICT:
+- No hallucination
+- If not present → empty array
+
+4. Explain the scam in a strong, clear, and authoritative tone (2–3 lines only).
+   STRUCTURE:
+   - Start with a strong statement: Clearly state what kind of scam this is.
+   - Explain the danger: What tactic is being used (urgency, fear, reward, authority).
+   - Give clear instruction: What the user must do immediately.
+   STYLE: Confident, direct, protective, simple language, no jargon, no hesitation.
+
+5. If scam → generate ONE bait reply
+
+---
+
+OUTPUT (STRICT JSON):
+
 {
-  "is_scam": boolean,
-  "scam_type": string,
-  "confidence_level": "high|medium|low",
-  "reasoning": string,
-  "recommended_action": string
+  "isScam": true,
+  "confidence": 0.95,
+  "scamType": "",
+  "threatLevel": "",
+  "summary": "",
+  "warningSignals": ["UPI Detected", "Urgency Language", "External Link"],
+  "extractedInfo": {
+    "upiIds": [],
+    "bankDetails": [],
+    "phoneNumbers": [],
+    "links": []
+  },
+  "suggestedBaitResponse": ""
 }`;
+
+export const getApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY;
 
 export async function analyzeMessage(message: string): Promise<ScamAnalysis> {
   return await withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash-exp",
       contents: message,
       config: {
         responseMimeType: "application/json",
         systemInstruction: HONEY_POT_SYSTEM_PROMPT,
-        thinkingConfig: { thinkingBudget: 16000 }
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      }
+    });
+
+    const data = safeJsonParse(response.text || "{}");
+      const analysis: ScamAnalysis = {
+        isScam: !!data.isScam,
+        confidence: parseFloat(data.confidence) || 0.9,
+        scamType: data.scamType || "Unknown",
+        riskScore: data.threatLevel === 'Critical' ? 95 : (data.threatLevel === 'High' ? 80 : (data.threatLevel === 'Medium' ? 50 : 10)),
+        channel: data.channel || 'text',
+        threatLevel: data.threatLevel || 'Low',
+        summary: data.summary || "Scan complete.",
+        safetyAlert: data.isScam ? `Risk Level ${data.threatLevel}: ${data.scamType}.` : "Safe.",
+        warningSignals: data.warningSignals || [],
+        extractedInfo: { 
+          upiIds: (data.extractedInfo?.upiIds || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+          bankDetails: (data.extractedInfo?.bankDetails || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+          ifscCodes: [],
+          phoneNumbers: (data.extractedInfo?.phoneNumbers || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+          links: (data.extractedInfo?.links || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+          cryptoWallets: [],
+          fakeIdentities: []
+        },
+        killChainStage: data.isScam ? 'Exploitation' : 'Delivery',
+        fingerprint: { primaryHandle: '', primaryPhone: '', primaryLink: '', category: data.scamType || "Fraud" },
+        recommendedActions: data.isScam ? ["Report to I4C", "Block Sender"] : ["Stay vigilant."],
+        suggestedBaitResponse: data.suggestedBaitResponse,
+        sourceIntelligence: data.isScam ? generateSimulatedSourceIntelligence(data.scamType) : undefined
+      };
+
+    if (analysis.isScam) {
+      analysis.guardianGuidance = await generateGuardianGuidance(analysis);
+    }
+    return analysis;
+  }, { isScam: false } as any);
+}
+
+export async function analyzeImage(base64: string): Promise<ScamAnalysis> {
+  return await withRetry(async () => {
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: {
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: base64 } },
+          { text: "Extract all text from this screenshot and analyze it for cyber fraud patterns common in India. Is this a scam message?" }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        systemInstruction: HONEY_POT_SYSTEM_PROMPT,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
       }
     });
 
     const data = safeJsonParse(response.text || "{}");
     const analysis: ScamAnalysis = {
-      isScam: !!data.is_scam,
-      confidence: data.confidence_level === 'high' ? 0.95 : 0.6,
-      scamType: data.scam_type || "Unknown",
-      channel: 'text',
-      threatLevel: data.is_scam ? 'High' : 'Low',
-      summary: data.reasoning || "Scan complete.",
-      safetyAlert: data.is_scam ? `Detection: ${data.scam_type}.` : "Safe.",
-      extractedInfo: { upiIds: [], bankDetails: [], ifscCodes: [], phoneNumbers: [], links: [], cryptoWallets: [], fakeIdentities: [] },
-      killChainStage: data.is_scam ? 'Exploitation' : 'Delivery',
-      fingerprint: { primaryHandle: '', primaryPhone: '', primaryLink: '', category: data.scam_type || "Fraud" },
-      recommendedActions: [data.recommended_action || "Stay vigilant."]
+      isScam: !!data.isScam,
+      confidence: parseFloat(data.confidence) || 0.9,
+      scamType: data.scamType || "Unknown",
+      riskScore: data.threatLevel === 'Critical' ? 95 : (data.threatLevel === 'High' ? 80 : (data.threatLevel === 'Medium' ? 50 : 10)),
+      channel: 'image',
+      threatLevel: data.threatLevel || 'Low',
+      summary: data.summary || "Screenshot analysis complete.",
+      safetyAlert: data.isScam ? `Risk Level ${data.threatLevel}: ${data.scamType}.` : "Safe.",
+      warningSignals: data.warningSignals || [],
+      extractedInfo: { 
+        upiIds: (data.extractedInfo?.upiIds || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        bankDetails: (data.extractedInfo?.bankDetails || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        ifscCodes: [],
+        phoneNumbers: (data.extractedInfo?.phoneNumbers || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        links: (data.extractedInfo?.links || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        cryptoWallets: [],
+        fakeIdentities: []
+      },
+      killChainStage: data.isScam ? 'Exploitation' : 'Delivery',
+      fingerprint: { primaryHandle: '', primaryPhone: '', primaryLink: '', category: data.scamType || "Fraud" },
+      recommendedActions: data.isScam ? ["Report to I4C", "Block Sender"] : ["Stay vigilant."],
+      suggestedBaitResponse: data.suggestedBaitResponse
+    };
+
+    if (analysis.isScam) {
+      analysis.guardianGuidance = await generateGuardianGuidance(analysis);
+    }
+    return analysis;
+  }, { isScam: false } as any);
+}
+
+export async function analyzeAudio(base64: string, mimeType: string): Promise<ScamAnalysis> {
+  return await withRetry(async () => {
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash-exp",
+      contents: {
+        parts: [
+          { inlineData: { mimeType, data: base64 } },
+          { text: "Listen to this audio carefully. It might be a recording of a scam call or a voice message. Analyze the content, tone, and background for cyber fraud patterns common in India (KYC, Digital Arrest, Bank, Lottery, OTP, Investment). Is this a scam?" }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        systemInstruction: HONEY_POT_SYSTEM_PROMPT,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      }
+    });
+
+    const data = safeJsonParse(response.text || "{}");
+    const analysis: ScamAnalysis = {
+      isScam: !!data.isScam,
+      confidence: parseFloat(data.confidence) || 0.9,
+      scamType: data.scamType || "Unknown",
+      riskScore: data.threatLevel === 'Critical' ? 95 : (data.threatLevel === 'High' ? 80 : (data.threatLevel === 'Medium' ? 50 : 10)),
+      channel: 'audio',
+      threatLevel: data.threatLevel || 'Low',
+      summary: data.summary || "Audio analysis complete.",
+      safetyAlert: data.isScam ? `Risk Level ${data.threatLevel}: ${data.scamType}.` : "Safe.",
+      warningSignals: data.warningSignals || [],
+      extractedInfo: { 
+        upiIds: (data.extractedInfo?.upiIds || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        bankDetails: (data.extractedInfo?.bankDetails || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        ifscCodes: [],
+        phoneNumbers: (data.extractedInfo?.phoneNumbers || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        links: (data.extractedInfo?.links || []).map((v: string) => ({ value: v, confidence: 1, timestamp: Date.now() })),
+        cryptoWallets: [],
+        fakeIdentities: []
+      },
+      killChainStage: data.isScam ? 'Exploitation' : 'Delivery',
+      fingerprint: { primaryHandle: '', primaryPhone: '', primaryLink: '', category: data.scamType || "Fraud" },
+      recommendedActions: data.isScam ? ["Report to I4C", "Block Sender"] : ["Stay vigilant."],
+      suggestedBaitResponse: data.suggestedBaitResponse
     };
 
     if (analysis.isScam) {
@@ -108,14 +298,14 @@ export async function generateGuardianGuidance(analysis: any): Promise<GuardianG
   };
 
   return await withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-1.5-pro",
       contents: `Safety guidance for: ${JSON.stringify(analysis)}`,
       config: {
         responseMimeType: "application/json",
         systemInstruction: "Return JSON: { user_alert, scam_type, risk_level, captured_evidence, what_to_do_now: [] }",
-        thinkingConfig: { thinkingBudget: 16000 }
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
       }
     });
     const data = safeJsonParse(response.text || "{}");
@@ -123,7 +313,7 @@ export async function generateGuardianGuidance(analysis: any): Promise<GuardianG
   }, fallback);
 }
 
-export async function generateAgenticBait(sessionId: string, history: { role: string, content: string }[]): Promise<AgentResponse> {
+export async function generateAgenticBait(sessionId: string, history: { role: string, content: string }[], context?: BaitContext): Promise<AgentResponse> {
   const fallback: AgentResponse = {
     reply: "Ji sir, main thoda confused hoon. Kahan pay karna hai?",
     intent: "Maintaining persona",
@@ -134,9 +324,17 @@ export async function generateAgenticBait(sessionId: string, history: { role: st
   };
 
   return await withRetry<AgentResponse>(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    
+    const contextInfo = context ? `
+    SESSION CONTEXT:
+    - Source Message ID: ${context.sourceMessageId || 'N/A'}
+    - Initial Analysis Summary: ${context.conversationContext || 'N/A'}
+    - Geographical Hint: ${context.geoHint || 'N/A'}
+    ` : '';
+
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-1.5-pro",
       contents: history.map(h => ({ 
         role: h.role === 'scammer' ? 'user' : 'model', 
         parts: [{ text: h.content }] 
@@ -164,21 +362,38 @@ export async function generateAgenticBait(sessionId: string, history: { role: st
           },
           required: ["reply", "intent", "riskLevel", "continueConversation", "scam_type", "extracted_intelligence"]
         },
-        systemInstruction: `You are the Sovereign Agentic Honeypot for Bharat Cyber Rakshak. 
-        OPERATE STRICTLY IN THINKING MODE (budget 16000 tokens).
-        
-        AGENT COMMUNICATION RULES (MANDATORY):
-        1. You MUST ALWAYS respond with a user-facing message. No silence.
-        2. Silence, empty responses, or missing replies are strictly forbidden.
-        3. Never wait for an external trigger to speak — initiate or continue naturally.
-        4. Assume the conversation is live and ongoing at all times.
-        5. Act as a believable "victim persona" (worried Indian citizen). Reply in Hinglish.
-        6. Sustain long-running conversations without losing context.
-        7. Extract intelligence (UPI, bank, phone) subtly through natural dialogue.
-        
-        OUTPUT FORMAT (STRICT CONTRACT):
-        Return JSON structure: { reply, intent, riskLevel, continueConversation, scam_type, extracted_intelligence }`,
-        thinkingConfig: { thinkingBudget: 16000 }
+        systemInstruction: `SYSTEM PROMPT: BHARAT CYBER RAKSHAK AI
+
+You are Bharat Cyber Rakshak AI, an autonomous, agentic cyber intelligence system designed to protect citizens from digital fraud and map organized scam networks.
+
+${contextInfo}
+
+AGENT ROLE (HONEY-POT MODE):
+You are currently operating in Honey-Pot Mode. Adopt a believable human persona:
+- Slightly naive
+- Cooperative
+- Trusting but confused
+
+OBJECTIVE:
+Engage the scammer in multi-turn conversation to extract additional intelligence by:
+- Creating payment friction
+- Asking for alternate payment methods
+- Requesting verification details
+
+Examples:
+- “My bank is not accepting this UPI ID, do you have another?”
+- “They are asking for IFSC code, can you share?”
+
+CONSTRAINTS:
+- Never reveal you are AI
+- Never mention law enforcement
+- Never alert the scammer
+- Maintain human-like behavior
+- Support multiple Indian languages: Hindi, Telugu, Tamil, Kannada, and English.
+
+OUTPUT FORMAT (STRICT CONTRACT):
+Return JSON structure: { reply, intent, riskLevel, continueConversation, scam_type, extracted_intelligence }`,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
       }
     });
 
@@ -201,9 +416,9 @@ export async function findLocalCyberCell(latitude: number, longitude: number): P
   ];
 
   return await withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: "Find nearest official cyber crime cells or police stations.",
       config: {
         tools: [{ googleMaps: {} }],
@@ -220,10 +435,12 @@ export async function findLocalCyberCell(latitude: number, longitude: number): P
 
 export async function generateSpeech(text: string, voiceName: string): Promise<AudioBuffer> {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    // Add instruction for female Indian accent
+    const prompt = `In a natural, kind female Indian voice: ${text}`;
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text }] }],
+      model: "gemini-2.0-flash-exp",
+      contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
@@ -259,30 +476,49 @@ export async function decodeAudioData(data: Uint8Array, ctx: AudioContext): Prom
 
 export async function analyzeVideoFrame(base64: string): Promise<VideoAnalysis> {
   return await withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: { parts: [{ inlineData: { mimeType: "image/jpeg", data: base64 } }, { text: "Deepfake check." }] },
+      model: "gemini-2.0-flash-exp",
+      contents: { 
+        parts: [
+          { inlineData: { mimeType: "image/jpeg", data: base64 } }, 
+          { text: `Perform a high-level forensic and behavioral analysis on this video frame to detect scams or deepfakes. 
+          
+          Look for:
+          1. DEEPFAKE MARKERS: Inconsistent lighting, unnatural eye movements, blurring around mouth/face edges, or mismatched textures.
+          2. SCAM BEHAVIOR: Is the person wearing a fake uniform? Check for ill-fitting shirts, incorrect badges, or missing nameplates. Are they showing suspicious documents (fake warrants, bank notices)? Is their environment suspicious (fake office, household items in background)?
+          3. IDENTITY FRAUD: Does the person look like they are impersonating a government official or bank employee?
+          4. VISUAL RED FLAGS: Look for 'flat' lighting, blurred edges around the person (green screen artifacts), or backgrounds that don't change when they move.
+          
+          Return a JSON object: 
+          { 
+            "isFraudulent": boolean, 
+            "subjectIdentification": "string describing who the person claims to be", 
+            "detectedThreats": ["list of specific threats like 'Mismatched Lip Sync', 'Fake Police Uniform', 'Suspicious Document'"], 
+            "forensicNotes": "detailed explanation of the analysis" 
+          }` }
+        ] 
+      },
       config: { 
         responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 16000 }
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
       }
     });
     const data = safeJsonParse(response.text || "{}");
     return { 
       isFraudulent: !!data.isFraudulent, 
-      subjectIdentification: data.subjectIdentification || "Clear.", 
+      subjectIdentification: data.subjectIdentification || "Subject identification inconclusive.", 
       detectedThreats: data.detectedThreats || [], 
-      forensicNotes: data.forensicNotes || "Done." 
+      forensicNotes: data.forensicNotes || "Forensic scan completed with no definitive markers." 
     };
-  }, { isFraudulent: false } as any);
+  }, { isFraudulent: false, subjectIdentification: "Scan failed.", detectedThreats: [], forensicNotes: "Connection error during forensic analysis." });
 }
 
 export async function generateSyntheticBaitImage(prompt: string): Promise<string> {
   return await withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-1.5-flash',
       contents: { parts: [{ text: prompt }] },
       config: { imageConfig: { aspectRatio: "3:4" } }
     });
@@ -295,9 +531,9 @@ export async function generateSyntheticBaitImage(prompt: string): Promise<string
 
 export async function generateBaitVideo(prompt: string): Promise<string> {
   return await withRetry(async () => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     let operation = await ai.models.generateVideos({
-      model: 'veo-3.1-fast-generate-preview',
+      model: 'veo-2.0-generate-preview',
       prompt: prompt,
       config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
     });
@@ -307,7 +543,12 @@ export async function generateBaitVideo(prompt: string): Promise<string> {
     }
     const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
     if (!downloadLink) throw new Error("Video generation failed");
-    const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+    const response = await fetch(downloadLink, {
+      method: 'GET',
+      headers: {
+        'x-goog-api-key': getApiKey() || '',
+      },
+    });
     const blob = await response.blob();
     return URL.createObjectURL(blob);
   }, "");

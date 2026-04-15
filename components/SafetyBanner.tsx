@@ -74,8 +74,11 @@ const SafetyBanner: React.FC<Props> = ({ alert, onDismiss }) => {
           </div>
           
           <div className="flex-1">
-            <div className="flex items-center mb-1">
+            <div className="flex items-center mb-1 space-x-3">
               <span className="sr-only">Important Security Alert: Level {alert?.level}</span>
+              <div className="bg-white/20 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/10 flex items-center">
+                <span className="mr-2">🛡️</span> Cyber Rakshak
+              </div>
               <h4 className="font-black text-[10px] uppercase tracking-[0.1em] text-white/80">
                 CITIZEN SAFETY ADVISORY // {alert?.level} RISK {isLow ? 'VERIFIED' : 'DETECTION'}
               </h4>

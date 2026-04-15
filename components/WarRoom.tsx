@@ -29,6 +29,7 @@ const WarRoom: React.FC<Props> = ({ logs, onRunSimulation }) => {
   const [forgeLog, setForgeLog] = useState<string[]>(["WAR_ROOM_INITIALIZED", "GRID_STABLE"]);
 
   const runForge = async (type: string) => {
+    if (isGenerating) return;
     setIsGenerating(true);
     setForgeLog(prev => [`INITIATING_${type}_SYNTHESIS`, ...prev]);
     try {
@@ -47,13 +48,31 @@ const WarRoom: React.FC<Props> = ({ logs, onRunSimulation }) => {
   };
 
   const runVideoForge = async () => {
+    if (isVideoGenerating) return;
+    
+    // Check for API key selection for Veo models
+    if (typeof window !== 'undefined' && (window as any).aistudio) {
+      const hasKey = await (window as any).aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        setForgeLog(prev => ["ACTION_REQUIRED: SELECT_API_KEY", ...prev]);
+        await (window as any).aistudio.openSelectKey();
+        // Proceeding after dialog opens as per guidelines
+      }
+    }
+
     setIsVideoGenerating(true);
     setForgeLog(prev => ["INITIATING_VEO_VIDEO_GEN", ...prev]);
     try {
       const url = await generateBaitVideo(videoPrompt);
       setGeneratedVideo(url);
       setForgeLog(prev => ["VIDEO_READY_FOR_DEPLOYMENT", ...prev]);
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message?.includes("Requested entity was not found")) {
+        setForgeLog(prev => ["ERROR: KEY_EXPIRED_OR_INVALID. RESETTING...", ...prev]);
+        if (typeof window !== 'undefined' && (window as any).aistudio) {
+          await (window as any).aistudio.openSelectKey();
+        }
+      }
       setForgeLog(prev => [`VIDEO_ERROR: ${e}`, ...prev]);
     } finally {
       setIsVideoGenerating(false);
@@ -69,10 +88,10 @@ const WarRoom: React.FC<Props> = ({ logs, onRunSimulation }) => {
         </div>
         <div className="flex gap-4">
            <button 
-             onClick={() => onRunSimulation?.(5000)}
+             onClick={() => onRunSimulation?.(50)}
              className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl hover:bg-red-500 transition-all active:scale-95"
            >
-             Populate 5,000 Stats
+             Populate 50 Incidents
            </button>
         </div>
       </header>
@@ -103,9 +122,31 @@ const WarRoom: React.FC<Props> = ({ logs, onRunSimulation }) => {
                  <svg className="w-full h-full text-blue-900/40 fill-current p-10" viewBox="0 0 800 600">
                     <path d="M400,100 L450,150 L500,130 L550,200 L600,250 L580,350 L620,450 L550,550 L500,700 L450,850 L350,850 L300,750 L250,650 L200,550 L180,450 L220,350 L200,250 L250,150 Z" />
                  </svg>
-                 <div className="absolute top-[30%] left-[50%] w-4 h-4 bg-red-500 rounded-full animate-ping" />
-                 <div className="absolute top-[55%] left-[42%] w-4 h-4 bg-orange-500 rounded-full animate-ping" />
-                 <div className="absolute top-[20%] left-[25%] w-4 h-4 bg-emerald-500 rounded-full animate-ping" />
+                 
+                 {/* Dynamic Threat Markers */}
+                 {logs.slice(0, 5).map((log, i) => (
+                   <div 
+                     key={log.id}
+                     className="absolute w-4 h-4 bg-red-500 rounded-full animate-ping"
+                     style={{
+                       top: `${30 + (i * 12) % 40}%`,
+                       left: `${20 + (i * 18) % 60}%`
+                     }}
+                   >
+                     <div className="absolute top-6 left-0 bg-black/90 border border-white/10 p-2 rounded text-[8px] font-black text-white whitespace-nowrap z-20">
+                       {log.sourceIntelligence?.city}, {log.sourceIntelligence?.state}
+                     </div>
+                   </div>
+                 ))}
+
+                 {logs.length === 0 && (
+                   <>
+                    <div className="absolute top-[30%] left-[50%] w-4 h-4 bg-red-500 rounded-full animate-ping" />
+                    <div className="absolute top-[55%] left-[42%] w-4 h-4 bg-orange-500 rounded-full animate-ping" />
+                    <div className="absolute top-[20%] left-[25%] w-4 h-4 bg-emerald-500 rounded-full animate-ping" />
+                   </>
+                 )}
+                 
                  <div className="absolute bottom-10 left-10 text-[9px] font-black text-slate-500 uppercase tracking-widest bg-black/80 p-3 rounded-lg border border-white/10">Sovereign Map v4.2 // Grid Online</div>
               </div>
            </div>
@@ -187,4 +228,4 @@ const WarRoom: React.FC<Props> = ({ logs, onRunSimulation }) => {
   );
 };
 
-export default WarRoom;
+export default React.memo(WarRoom);

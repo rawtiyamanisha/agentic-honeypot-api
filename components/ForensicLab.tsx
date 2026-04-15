@@ -11,6 +11,11 @@ const ForensicLab: React.FC<Props> = ({ analysis }) => {
     <div className="bg-[#020617] rounded-[4rem] border border-white/5 p-16 text-white space-y-12 shadow-2xl relative overflow-hidden">
       {/* Background Ambience */}
       <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_100%_0%,_rgba(37,99,235,0.05)_0%,_transparent_50%)]" />
+      <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
+        <div className="text-[20vw] font-black uppercase tracking-[0.2em] rotate-[-15deg]">
+          BHARAT CYBER RAKSHAK
+        </div>
+      </div>
       <div className="absolute -top-24 -right-24 p-20 opacity-5">
          <svg className="w-96 h-96" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" /></svg>
       </div>
@@ -44,14 +49,42 @@ const ForensicLab: React.FC<Props> = ({ analysis }) => {
                   <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Calculated in 1.2s</div>
                </div>
             </div>
+
+            <div className="p-10 bg-black/40 border border-white/5 rounded-[3rem] space-y-6">
+               <div className="flex items-center justify-between">
+                 <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em]">Forensic Evidence Log</h4>
+                 <div className="w-2 h-2 bg-red-500 rounded-full animate-ping" />
+               </div>
+               <div className="space-y-3 font-mono text-[10px] text-slate-400">
+                 <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-2xl border border-white/5">
+                   <span className="text-blue-500">07:49:38</span>
+                   <span className="text-slate-500 font-black uppercase tracking-widest">Neural_Artifact_Detected</span>
+                   <span className="text-blue-300">440Hz-480Hz Range</span>
+                 </div>
+                 <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-2xl border border-white/5">
+                   <span className="text-blue-500">07:49:39</span>
+                   <span className="text-slate-500 font-black uppercase tracking-widest">Acoustic_Fingerprint</span>
+                   <span className="text-blue-300">Match: Cluster_BCR_992</span>
+                 </div>
+                 <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-2xl border border-white/5">
+                   <span className="text-blue-500">07:49:40</span>
+                   <span className="text-slate-500 font-black uppercase tracking-widest">Linguistic_Urgency</span>
+                   <span className="text-blue-300">Score: 0.94 (Critical)</span>
+                 </div>
+               </div>
+            </div>
             
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-3 gap-8">
                <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] hover:border-blue-500/20 transition-all group">
-                  <div className="text-[9px] font-black text-slate-500 uppercase mb-3 tracking-widest group-hover:text-blue-500 transition-colors">Confidence Index</div>
-                  <div className="text-5xl font-black text-white">{(analysis.confidence * 100).toFixed(1)}%</div>
+                  <div className="text-[9px] font-black text-slate-500 uppercase mb-3 tracking-widest group-hover:text-blue-500 transition-colors">Risk Score</div>
+                  <div className={`text-5xl font-black ${analysis.riskScore > 70 ? 'text-red-500' : 'text-white'}`}>{analysis.riskScore}</div>
                </div>
                <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] hover:border-blue-500/20 transition-all group">
-                  <div className="text-[9px] font-black text-slate-500 uppercase mb-3 tracking-widest group-hover:text-red-500 transition-colors">Threat Velocity</div>
+                  <div className="text-[9px] font-black text-slate-500 uppercase mb-3 tracking-widest group-hover:text-blue-500 transition-colors">Confidence</div>
+                  <div className="text-5xl font-black text-white">{(analysis.confidence * 100).toFixed(0)}%</div>
+               </div>
+               <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] hover:border-blue-500/20 transition-all group">
+                  <div className="text-[9px] font-black text-slate-500 uppercase mb-3 tracking-widest group-hover:text-red-500 transition-colors">Threat</div>
                   <div className="text-5xl font-black text-white uppercase tracking-tighter">{analysis.threatLevel}</div>
                </div>
             </div>
